@@ -98,32 +98,35 @@ function renderAll(shouldClearResults = false) {
 
 function renderItems() {
     const el = document.getElementById('itemList');
-    el.innerHTML = state.data.items.map((c,i) => `
-        <div class="item-card">
-            <div class="item-head">
-                <span class="item-title">재화 #${i+1}</span>
-                ${state.data.items.length>1?`<button class="btn btn-rm" data-idx="${i}">삭제</button>`:''}
-            </div>
-            <div class="grid-2" style="grid-template-columns: 1fr 1.5fr">
-                <div class="row">
-                    <label>ID</label>
-                    <input type="text" class="item-id-input" data-idx="${i}" value="${escapeHTML(c.id)}" data-old-id="${escapeHTML(c.id)}">
-                </div>
-                <div class="row">
-                    <label>표시 이름</label>
-                    <input type="text" class="item-name-input" data-idx="${i}" value="${escapeHTML(c.name)}">
-                </div>
-            </div>
-        </div>
-    `).join('');
+    const template = document.getElementById('item-card-template');
+    el.innerHTML = '';
 
-    el.querySelectorAll('.item-id-input').forEach(input => {
-        input.addEventListener('focus', (e) => { e.target.dataset.oldId = e.target.value; });
-        input.addEventListener('change', (e) => {
+    state.data.items.forEach((c, i) => {
+        const clone = template.content.cloneNode(true);
+        const card = clone.querySelector('.item-card');
+        const title = clone.querySelector('.item-title');
+        const rmBtn = clone.querySelector('.btn-rm');
+        const idInput = clone.querySelector('.item-id-input');
+        const nameInput = clone.querySelector('.item-name-input');
+
+        title.textContent = `재화 #${i + 1}`;
+        
+        if (state.data.items.length <= 1) {
+            rmBtn.remove();
+        } else {
+            rmBtn.dataset.idx = i;
+            rmBtn.addEventListener('click', (e) => removeItem(parseInt(e.target.dataset.idx)));
+        }
+
+        idInput.value = c.id;
+        idInput.dataset.idx = i;
+        idInput.dataset.oldId = c.id;
+        idInput.addEventListener('focus', (e) => { e.target.dataset.oldId = e.target.value; });
+        idInput.addEventListener('change', (e) => {
             const idx = e.target.dataset.idx;
             const oldId = e.target.dataset.oldId;
-            const newId = e.target.value.replace(/\s/g,'');
-            
+            const newId = e.target.value.replace(/\s/g, '');
+
             if (newId === "") { e.target.value = oldId; return; }
             if (state.data.items.some((item, i) => i != idx && item.id === newId)) {
                 showStatus("이미 존재하는 ID입니다!", "error", "calcStatus");
@@ -134,24 +137,22 @@ function renderItems() {
             if (oldId !== newId) {
                 renameItemId(oldId, newId);
                 state.data.items[idx].id = newId;
-                renderAll(); 
+                renderAll();
                 debouncedSave();
             }
         });
-    });
 
-    el.querySelectorAll('.item-name-input').forEach(input => {
-        input.addEventListener('input', (e) => {
+        nameInput.value = c.name;
+        nameInput.dataset.idx = i;
+        nameInput.addEventListener('input', (e) => {
             state.data.items[e.target.dataset.idx].name = e.target.value;
             document.querySelectorAll(`.lbl-name-${state.data.items[e.target.dataset.idx].id}`).forEach(lbl => {
                 lbl.textContent = e.target.value;
             });
             debouncedSave();
         });
-    });
 
-    el.querySelectorAll('.btn-rm').forEach(btn => {
-        btn.addEventListener('click', (e) => removeItem(parseInt(e.target.dataset.idx)));
+        el.appendChild(clone);
     });
 }
 
@@ -166,67 +167,132 @@ function renameItemId(oldId, newId) {
 
 function renderStages() {
     const el = document.getElementById('stageList');
-    el.innerHTML = state.data.stages.map((s,i) => {
+    const stageTemplate = document.getElementById('stage-card-template');
+    const inputTemplate = document.getElementById('input-row-template');
+    el.innerHTML = '';
+
+    state.data.stages.forEach((s, i) => {
+        const clone = stageTemplate.content.cloneNode(true);
+        const card = clone.querySelector('.item-card');
+        const title = clone.querySelector('.item-title');
+        const toggle = clone.querySelector('.stage-toggle');
+        const apInput = clone.querySelector('.stage-ap-input');
+        const dropGrid = clone.querySelector('.stage-item-grid');
+
         const idx = parseInt(s.index);
         const groupNum = idx <= 4 ? 1 : idx <= 8 ? 2 : 3;
-        const statusClass = s.enabled ? 'active' : 'inactive';
-        return `
-        <div class="item-card stage-group-${groupNum} ${statusClass}" id="card-stage-${s.id}">
-            <div class="item-head">
-                <span class="item-title">스테이지 ${escapeHTML(s.index)}</span>
-                <label class="switch">
-                    <input type="checkbox" class="stage-toggle" data-idx="${i}" ${s.enabled?'checked':''}>
-                    <span class="slider"></span>
-                </label>
-            </div>
-            <div class="row">
-                <label>AP 소모량</label>
-                <input type="number" class="stage-ap-input" data-idx="${i}" value="${s.ap}" min="0">
-            </div>
-            <div class="stage-item-grid">
-                ${state.data.items.map(c => `
-                    <div class="row">
-                        <label class="lbl-name-${c.id}">${escapeHTML(c.name)}</label>
-                        <input type="number" class="stage-drop-input" data-stage-idx="${i}" data-item-id="${c.id}" value="${s.drops[c.id]||0}" min="0">
-                    </div>
-                `).join('')}
-            </div>
-        </div>
-        `;
-    }).join('');
+        card.id = `card-stage-${s.id}`;
+        card.className = `item-card stage-group-${groupNum} ${s.enabled ? 'active' : 'inactive'}`;
+        
+        title.textContent = `스테이지 ${s.index}`;
+        
+        toggle.checked = s.enabled;
+        toggle.dataset.idx = i;
+        toggle.addEventListener('change', (e) => toggleStage(parseInt(e.target.dataset.idx), e.target.checked));
 
-    el.querySelectorAll('.stage-toggle').forEach(input => {
-        input.addEventListener('change', (e) => toggleStage(parseInt(e.target.dataset.idx), e.target.checked));
-    });
-    el.querySelectorAll('.stage-ap-input').forEach(input => {
-        input.addEventListener('input', (e) => { state.data.stages[e.target.dataset.idx].ap = Math.max(0, +e.target.value || 0); debouncedSave(); });
-    });
-    el.querySelectorAll('.stage-drop-input').forEach(input => {
-        input.addEventListener('input', (e) => { state.data.stages[e.target.dataset.stageIdx].drops[e.target.dataset.itemId] = Math.max(0, +e.target.value || 0); debouncedSave(); });
+        apInput.value = s.ap;
+        apInput.dataset.idx = i;
+        apInput.addEventListener('input', (e) => { 
+            state.data.stages[e.target.dataset.idx].ap = Math.max(0, +e.target.value || 0); 
+            debouncedSave(); 
+        });
+
+        state.data.items.forEach(c => {
+            const inputClone = inputTemplate.content.cloneNode(true);
+            const label = inputClone.querySelector('label');
+            const input = inputClone.querySelector('input');
+
+            label.className = `lbl-name-${c.id}`;
+            label.textContent = c.name;
+            
+            input.className = 'stage-drop-input';
+            input.dataset.stageIdx = i;
+            input.dataset.itemId = c.id;
+            input.value = s.drops[c.id] || 0;
+            input.addEventListener('input', (e) => { 
+                state.data.stages[e.target.dataset.stageIdx].drops[e.target.dataset.itemId] = Math.max(0, +e.target.value || 0); 
+                debouncedSave(); 
+            });
+
+            dropGrid.appendChild(inputClone);
+        });
+
+        el.appendChild(clone);
     });
 }
 
 function renderInventory() {
     const el = document.getElementById('existingList');
-    el.innerHTML = state.data.items.map(c=>`<div class="row"><label class="lbl-name-${c.id}">${escapeHTML(c.name)}</label><input type="number" class="inventory-input" data-uid="${c.id}" value="${state.data.inventory[c.id]||0}" min="0"></div>`).join('');
-    el.querySelectorAll('.inventory-input').forEach(input => {
-        input.addEventListener('input', (e) => { state.data.inventory[e.target.dataset.uid] = Math.max(0, +e.target.value || 0); debouncedSave(); });
+    const template = document.getElementById('input-row-template');
+    el.innerHTML = '';
+
+    state.data.items.forEach(c => {
+        const clone = template.content.cloneNode(true);
+        const label = clone.querySelector('label');
+        const input = clone.querySelector('input');
+
+        label.className = `lbl-name-${c.id}`;
+        label.textContent = c.name;
+
+        input.className = 'inventory-input';
+        input.dataset.uid = c.id;
+        input.value = state.data.inventory[c.id] || 0;
+        input.addEventListener('input', (e) => { 
+            state.data.inventory[e.target.dataset.uid] = Math.max(0, +e.target.value || 0); 
+            debouncedSave(); 
+        });
+
+        el.appendChild(clone);
     });
 }
 
 function renderBonuses() {
     const el = document.getElementById('bonusList');
-    el.innerHTML = state.data.items.map(c=>`<div class="row"><label class="lbl-name-${c.id}">${escapeHTML(c.name)} (%)</label><input type="number" class="bonus-input" data-uid="${c.id}" value="${state.data.bonuses[c.id]||0}" min="0"></div>`).join('');
-    el.querySelectorAll('.bonus-input').forEach(input => {
-        input.addEventListener('input', (e) => { state.data.bonuses[e.target.dataset.uid] = Math.max(0, +e.target.value || 0); debouncedSave(); });
+    const template = document.getElementById('input-row-template');
+    el.innerHTML = '';
+
+    state.data.items.forEach(c => {
+        const clone = template.content.cloneNode(true);
+        const label = clone.querySelector('label');
+        const input = clone.querySelector('input');
+
+        label.className = `lbl-name-${c.id}`;
+        label.textContent = `${c.name} (%)`;
+
+        input.className = 'bonus-input';
+        input.dataset.uid = c.id;
+        input.value = state.data.bonuses[c.id] || 0;
+        input.addEventListener('input', (e) => { 
+            state.data.bonuses[e.target.dataset.uid] = Math.max(0, +e.target.value || 0); 
+            debouncedSave(); 
+        });
+
+        el.appendChild(clone);
     });
 }
 
 function renderTargets() {
     const el = document.getElementById('reqList');
-    el.innerHTML = state.data.items.map(c=>`<div class="row"><label class="lbl-name-${c.id}">${escapeHTML(c.name)}</label><input type="number" class="target-input" data-uid="${c.id}" value="${state.data.targets[c.id]||0}" min="0"></div>`).join('');
-    el.querySelectorAll('.target-input').forEach(input => {
-        input.addEventListener('input', (e) => { state.data.targets[e.target.dataset.uid] = Math.max(0, +e.target.value || 0); debouncedSave(); });
+    const template = document.getElementById('input-row-template');
+    el.innerHTML = '';
+
+    state.data.items.forEach(c => {
+        const clone = template.content.cloneNode(true);
+        const label = clone.querySelector('label');
+        const input = clone.querySelector('input');
+
+        label.className = `lbl-name-${c.id}`;
+        label.textContent = c.name;
+
+        input.className = 'target-input';
+        input.dataset.uid = c.id;
+        input.value = state.data.targets[c.id] || 0;
+        input.addEventListener('input', (e) => { 
+            state.data.targets[e.target.dataset.uid] = Math.max(0, +e.target.value || 0); 
+            debouncedSave(); 
+        });
+
+        el.appendChild(clone);
     });
 }
 
@@ -352,7 +418,10 @@ async function runOptimization() {
     const dataSnapshot = structuredClone(state.data);
     const originalText = btn.textContent;
     btn.disabled = true;
-    btn.innerHTML = `<span class="spinner"></span> 계산 중...`;
+    
+    const spinnerTemplate = document.getElementById('spinner-template');
+    btn.innerHTML = '';
+    btn.appendChild(spinnerTemplate.content.cloneNode(true));
 
     const minWait = new Promise(resolve => setTimeout(resolve, 200));
 
@@ -466,26 +535,45 @@ function displayResults(result, data) {
     const totalEl = document.getElementById('resultTotal');
     const valArea = document.getElementById('resultValidation');
 
-    list.innerHTML = Object.entries(result.stageRuns)
+    const stageTemplate = document.getElementById('result-stage-template');
+    const validationTemplate = document.getElementById('result-validation-template');
+
+    list.innerHTML = '';
+    Object.entries(result.stageRuns)
         .sort(([a],[b]) => {
             const sA = stages.find(s=>s.id===a);
             const sB = stages.find(s=>s.id===b);
             return (sA?.index||'').localeCompare(sB?.index||'', undefined, {numeric:true});
         })
-        .map(([id, runs]) => {
+        .forEach(([id, runs]) => {
             const s = stages.find(st => st.id === id);
+            const clone = stageTemplate.content.cloneNode(true);
+            const stageName = clone.querySelector('.stage-name');
+            const stageRuns = clone.querySelector('.stage-runs');
+            const resItem = clone.querySelector('.res-item');
+
+            stageName.textContent = `스테이지 ${s.index}`;
+            stageRuns.textContent = `${runs}회 (${(s.ap * runs).toLocaleString()} AP)`;
+
             const drops = items.map(c => {
                 const bonus = (bonuses[c.id] || 0) / 100;
                 const base = s.drops[c.id] || 0;
                 const perRun = Math.ceil((base + base * bonus - Number.EPSILON));
-                return perRun > 0 ? `${escapeHTML(c.name)} ×${(perRun * runs).toLocaleString()}` : null;
+                return perRun > 0 ? `${c.name} ×${(perRun * runs).toLocaleString()}` : null;
             }).filter(Boolean).join(', ');
-            return `<div class="res-stage"><div class="res-stage-head"><span>스테이지 ${escapeHTML(s.index)}</span><span>${runs}회 (${(s.ap * runs).toLocaleString()} AP)</span></div><div class="res-item">${drops}</div></div>`;
-        }).join('');
+
+            resItem.textContent = drops;
+            list.appendChild(clone);
+        });
 
     totalEl.textContent = `총 소요 AP: ${result.totalAp.toLocaleString()} AP`;
 
-    let valHtml = `<div class="val-title">파밍 결과 재검증</div>`;
+    valArea.innerHTML = '';
+    const valTitle = document.createElement('div');
+    valTitle.className = 'val-title';
+    valTitle.textContent = '파밍 결과 재검증';
+    valArea.appendChild(valTitle);
+
     items.forEach(c => {
         const goal = targets[c.id] || 0;
         const current = inventory[c.id] || 0;
@@ -498,11 +586,29 @@ function displayResults(result, data) {
         });
         const total = current + farmed;
         const excess = total - goal;
+
         if (goal > 0 || farmed > 0) {
-            valHtml += `<div class="val-item"><div class="val-row"><span class="val-main">${escapeHTML(c.name)}</span><span class="val-status">${excess >= 0 ? '달성' : '부족'}</span></div><div class="val-row"><span class="val-detail">보유 ${current.toLocaleString()} + 파밍 ${farmed.toLocaleString()} = <b>${total.toLocaleString()}</b></span><span class="val-excess">(${excess >= 0 ? '+' : ''}${excess.toLocaleString()})</span></div></div>`;
+            const clone = validationTemplate.content.cloneNode(true);
+            const valMain = clone.querySelector('.val-main');
+            const valStatus = clone.querySelector('.val-status');
+            const valDetail = clone.querySelector('.val-detail');
+            const valExcess = clone.querySelector('.val-excess');
+
+            valMain.textContent = c.name;
+            valStatus.textContent = excess >= 0 ? '달성' : '부족';
+            
+            // 보유 수량 + 파밍 수량 = 총 수량 형식으로 텍스트 구성
+            valDetail.textContent = `보유 ${current.toLocaleString()} + 파밍 ${farmed.toLocaleString()} = `;
+            const strong = document.createElement('b');
+            strong.textContent = total.toLocaleString();
+            valDetail.appendChild(strong);
+            
+            valExcess.textContent = `(${excess >= 0 ? '+' : ''}${excess.toLocaleString()})`;
+
+            valArea.appendChild(clone);
         }
     });
-    valArea.innerHTML = valHtml;
+
     area.style.display = 'block';
     area.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }

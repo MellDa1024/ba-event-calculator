@@ -104,5 +104,76 @@
     </div>
 </div>
 
+<!-- 템플릿 정의 -->
+<template id="item-card-template">
+    <div class="item-card">
+        <div class="item-head">
+            <span class="item-title"></span>
+            <button class="btn btn-rm">삭제</button>
+        </div>
+        <div class="grid-2">
+            <div class="row">
+                <label>ID</label>
+                <input type="text" class="item-id-input">
+            </div>
+            <div class="row">
+                <label>표시 이름</label>
+                <input type="text" class="item-name-input">
+            </div>
+        </div>
+    </div>
+</template>
+
+<template id="stage-card-template">
+    <div class="item-card">
+        <div class="item-head">
+            <span class="item-title"></span>
+            <label class="switch">
+                <input type="checkbox" class="stage-toggle">
+                <span class="slider"></span>
+            </label>
+        </div>
+        <div class="row">
+            <label>AP 소모량</label>
+            <input type="number" class="stage-ap-input" min="0">
+        </div>
+        <div class="stage-item-grid"></div>
+    </div>
+</template>
+
+<template id="input-row-template">
+    <div class="row">
+        <label></label>
+        <input type="number" min="0">
+    </div>
+</template>
+
+<template id="result-stage-template">
+    <div class="res-stage">
+        <div class="res-stage-head">
+            <span class="stage-name"></span>
+            <span class="stage-runs"></span>
+        </div>
+        <div class="res-item"></div>
+    </div>
+</template>
+
+<template id="result-validation-template">
+    <div class="val-item">
+        <div class="val-row">
+            <span class="val-main"></span>
+            <span class="val-status"></span>
+        </div>
+        <div class="val-row">
+            <span class="val-detail"></span>
+            <span class="val-excess"></span>
+        </div>
+    </div>
+</template>
+
+<template id="spinner-template">
+    <span class="spinner"></span> 계산 중...
+</template>
+
 </body>
 </html>
